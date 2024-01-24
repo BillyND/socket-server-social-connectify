@@ -58,6 +58,14 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => handleDisconnect(socket.id));
 });
 
+// Default route
+app.get("/", (req, res) => {
+  res.send({
+    EC: 0,
+    message: `<=== Socket server is running on port ${PORT} ===>`,
+  });
+});
+
 // Connect to the database and start the server
 (async () => {
   try {
