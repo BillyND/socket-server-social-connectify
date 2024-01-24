@@ -18,12 +18,12 @@ const io = socketio(httpServer, {
 let users = [];
 
 // Socket.io functions
-const handleUpdatePost = (post) => {
-  io.emit("getPost", post);
+const handleUpdatePost = (post, targetSocketId) => {
+  io.emit("getPost", { ...post, targetSocketId });
 };
 
-const handleUpdateComment = (post) => {
-  io.emit("getComment", post);
+const handleUpdateComment = (comment, targetSocketId) => {
+  io.emit("getComment", { ...comment, targetSocketId });
 };
 
 const handleChangeData = (data) => {
@@ -48,12 +48,13 @@ const handleDisconnect = (socketId) => {
 
 // Socket.io event listeners
 io.on("connection", (socket) => {
-  console.log("===>connect");
   // Post
-  socket.on("updatePost", handleUpdatePost);
+  socket.on("updatePost", (post) => handleUpdatePost(post, socket.id));
 
   //Comment
-  socket.on("updateComment", handleUpdateComment);
+  socket.on("updateComment", (comment) =>
+    handleUpdateComment(comment, socket.id)
+  );
   socket.on("changeData", handleChangeData);
   socket.on("addUser", (userId) => handleAddUser(userId, socket.id));
   socket.on("sendMessage", handleSendMessage);
