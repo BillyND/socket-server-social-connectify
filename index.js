@@ -1,6 +1,8 @@
 const socketio = require("socket.io");
 const http = require("http");
 const express = require("express");
+const cors = require("cors");
+const cookieParser = require("cookie-parser");
 
 const app = express();
 const PORT = 8089;
@@ -57,6 +59,14 @@ io.on("connection", (socket) => {
   socket.on("sendMessage", handleSendMessage);
   socket.on("disconnect", () => handleDisconnect(socket.id));
 });
+
+// Express middleware
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(cors());
+app.use(cookieParser());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Default route
 app.get("/", (req, res) => {
