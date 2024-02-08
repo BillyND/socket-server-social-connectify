@@ -15,49 +15,53 @@ const io = socketio(httpServer, {
   },
 });
 
-let users = [];
+// Object to store user information and their socketIds
+let users = {};
+
+const getOtherSocketIds = (currentSocketId) =>
+  Object.values(users).filter((item) => item !== currentSocketId);
 
 // Socket.io functions
 const handleUpdatePost = (post, targetSocketId) => {
-  io.emit("getPost", { ...post, targetSocketId });
+  const { userId } = post || {};
+  const currentSocketId = users[userId];
+
+  io.to(getOtherSocketIds(currentSocketId)).emit("getPost", {
+    ...post,
+    targetSocketId,
+  });
 };
 
 const handleUpdateComment = (comment, targetSocketId) => {
   io.emit("getComment", { ...comment, targetSocketId });
 };
 
-const handleChangeData = (data) => {
-  comments = data;
-  io.emit("getData", initData);
-};
-
 const handleAddUser = (userId, socketId) => {
-  !users.some((user) => user.userId === userId) &&
-    users.push({ userId, socketId });
+  users[userId] = socketId;
   io.emit("getUsers", users);
-};
-
-const handleSendMessage = ({ senderId, receiverId, text }) => {
-  const user = getUser(receiverId);
-  io.to(user?.socketId).emit("getMessage", { senderId, text });
 };
 
 const handleDisconnect = (socketId) => {
-  io.emit("getUsers", users);
+  // Remove user from the list upon disconnection
+  const disconnectedUserId = Object.keys(users).find(
+    (userId) => users[userId] === socketId
+  );
+  if (disconnectedUserId) {
+    delete users[disconnectedUserId];
+    io.emit("getUsers", users);
+  }
 };
 
 // Socket.io event listeners
 io.on("connection", (socket) => {
-  // Post
-  socket.on("updatePost", (post) => handleUpdatePost(post, socket.id));
+  console.log("===>connection:", socket.id);
 
-  //Comment
+  // Register events from client
+  socket.on("updatePost", (post) => handleUpdatePost(post, socket.id));
   socket.on("updateComment", (comment) =>
     handleUpdateComment(comment, socket.id)
   );
-  socket.on("changeData", handleChangeData);
   socket.on("addUser", (userId) => handleAddUser(userId, socket.id));
-  socket.on("sendMessage", handleSendMessage);
   socket.on("disconnect", () => handleDisconnect(socket.id));
 });
 
