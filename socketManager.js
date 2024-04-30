@@ -35,6 +35,10 @@ const handleDisconnect = (io, socketId) => {
   }
 };
 
+const handleSendMessage = (io, data, targetSocketId) => {
+  io.emit("getMessage", { ...data, targetSocketId });
+};
+
 const setupSocketIO = (app) => {
   const httpServer = http.createServer(app);
   const io = socketio(httpServer, {
@@ -45,15 +49,16 @@ const setupSocketIO = (app) => {
 
   // Socket.io event listeners
   io.on("connection", (socket) => {
-    console.log("===>connection:", socket.id);
-
-    // Register events from client
+    // Process post
     socket.on("updatePost", (post) => handleUpdatePost(io, post, socket.id));
     socket.on("updateComment", (comment) =>
       handleUpdateComment(io, comment, socket.id)
     );
     socket.on("addUser", (userId) => handleAddUser(io, userId, socket.id));
     socket.on("disconnect", () => handleDisconnect(io, socket.id));
+
+    // Process message
+    socket.on("sendMessage", (data) => handleSendMessage(io, data, socket.id));
   });
 
   return httpServer;
