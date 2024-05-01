@@ -2,41 +2,48 @@ const http = require("http");
 const socketio = require("socket.io");
 
 // Object to store user information and their socketIds
-let users = {};
+const connectedUsers = {};
 
 const getOtherSocketIds = (currentSocketId) =>
-  Object.values(users).filter((item) => item !== currentSocketId);
+  Object.values(connectedUsers).filter(
+    (socketId) => socketId !== currentSocketId
+  );
 
 // Socket.io functions
-const handleUpdatePost = (io, post, targetSocketId) => {
+const emitPostUpdate = (io, post, targetSocketId) => {
   io.emit("getPost", {
     ...post,
     targetSocketId,
   });
 };
 
-const handleUpdateComment = (io, comment, targetSocketId) => {
+const emitCommentUpdate = (io, comment, targetSocketId) => {
   io.emit("getComment", { ...comment, targetSocketId });
 };
 
-const handleAddUser = (io, userId, socketId) => {
-  users[userId] = socketId;
-  io.emit("getUsers", users);
+const connectUser = (io, userId, socketId) => {
+  connectedUsers[userId] = socketId;
 };
 
-const handleDisconnect = (io, socketId) => {
+const disconnectUser = (io, socketId) => {
   // Remove user from the list upon disconnection
-  const disconnectedUserId = Object.keys(users).find(
-    (userId) => users[userId] === socketId
+  const disconnectedUserId = Object.keys(connectedUsers).find(
+    (userId) => connectedUsers[userId] === socketId
   );
+
   if (disconnectedUserId) {
-    delete users[disconnectedUserId];
-    io.emit("getUsers", users);
+    delete connectedUsers[disconnectedUserId];
   }
 };
 
-const handleSendMessage = (io, data, targetSocketId) => {
-  io.emit("getMessage", { ...data, targetSocketId });
+const emitSendMessage = (io, data) => {
+  const { userId, receiverId } = data || {};
+
+  [userId, receiverId].forEach((id) => {
+    if (id && connectedUsers[id]) {
+      io.to(connectedUsers[id]).emit("getMessage", data);
+    }
+  });
 };
 
 const setupSocketIO = (app) => {
@@ -50,15 +57,15 @@ const setupSocketIO = (app) => {
   // Socket.io event listeners
   io.on("connection", (socket) => {
     // Process post
-    socket.on("updatePost", (post) => handleUpdatePost(io, post, socket.id));
+    socket.on("updatePost", (post) => emitPostUpdate(io, post, socket.id));
     socket.on("updateComment", (comment) =>
-      handleUpdateComment(io, comment, socket.id)
+      emitCommentUpdate(io, comment, socket.id)
     );
-    socket.on("addUser", (userId) => handleAddUser(io, userId, socket.id));
-    socket.on("disconnect", () => handleDisconnect(io, socket.id));
+    socket.on("connectUser", (userId) => connectUser(io, userId, socket.id));
+    socket.on("disconnect", () => disconnectUser(io, socket.id));
 
     // Process message
-    socket.on("sendMessage", (data) => handleSendMessage(io, data, socket.id));
+    socket.on("sendMessage", (data) => emitSendMessage(io, data, socket.id));
   });
 
   return httpServer;
