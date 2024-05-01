@@ -36,12 +36,12 @@ const disconnectUser = (io, socketId) => {
   }
 };
 
-const emitSendMessage = (io, data) => {
+const emitSendMessage = (io, data, targetSocketId) => {
   const { userId, receiverId } = data || {};
 
   [userId, receiverId].forEach((id) => {
     if (id && connectedUsers[id]) {
-      io.to(connectedUsers[id]).emit("getMessage", data);
+      io.to(connectedUsers[id]).emit("getMessage", { ...data, targetSocketId });
     }
   });
 };
