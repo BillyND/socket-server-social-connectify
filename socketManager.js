@@ -46,6 +46,19 @@ const emitSendMessage = (io, data, targetSocketId) => {
   });
 };
 
+const emitUserTyping = (io, data, targetSocketId) => {
+  const { receiverId } = data || {};
+
+  [receiverId].forEach((id) => {
+    if (id && connectedUsers[id]) {
+      io.to(connectedUsers[id]).emit("receiveUserTyping", {
+        ...data,
+        targetSocketId,
+      });
+    }
+  });
+};
+
 const setupSocketIO = (app) => {
   const httpServer = http.createServer(app);
   const io = socketio(httpServer, {
@@ -66,6 +79,7 @@ const setupSocketIO = (app) => {
 
     // Process message
     socket.on("sendMessage", (data) => emitSendMessage(io, data, socket.id));
+    socket.on("userTyping", (data) => emitUserTyping(io, data, socket.id));
   });
 
   return httpServer;
