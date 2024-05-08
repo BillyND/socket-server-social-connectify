@@ -2,6 +2,7 @@ const http = require("http");
 const socketio = require("socket.io");
 
 // Object to store user information and their socketIds
+const infoUserOnline = {};
 const connectedUsers = {};
 const userSockets = {};
 
@@ -9,6 +10,16 @@ const getOtherSocketIds = (currentSocketId) =>
   Object.values(connectedUsers).filter(
     (socketIds) => !socketIds.includes(currentSocketId)
   );
+
+const getUsersOnline = () => {
+  const usersOnline = {};
+
+  for (const userId in connectedUsers) {
+    usersOnline[userId] = true;
+  }
+
+  return usersOnline;
+};
 
 // Socket.io functions
 const emitPostUpdate = (io, post, targetSocketId) => {
@@ -22,7 +33,9 @@ const emitCommentUpdate = (io, comment, targetSocketId) => {
   io.emit("getComment", { ...comment, targetSocketId });
 };
 
-const connectUser = (io, userId, socketId) => {
+const connectUser = (io, data, socketId) => {
+  const { userId, email } = data || {};
+
   if (connectedUsers[userId]) {
     connectedUsers[userId].push(socketId);
   } else {
@@ -31,7 +44,13 @@ const connectUser = (io, userId, socketId) => {
 
   userSockets[socketId] = userId;
 
-  console.log("===>connectUser:", connectedUsers);
+  if (email) {
+    infoUserOnline[email] = data;
+  }
+
+  const usersOnline = getUsersOnline();
+
+  io.emit("usersOnline", { usersOnline, infoUserOnline });
 };
 
 const disconnectUser = (io, socketId) => {
@@ -48,8 +67,9 @@ const disconnectUser = (io, socketId) => {
   }
 
   delete userSockets[socketId];
+  const usersOnline = getUsersOnline();
 
-  console.log("===>disconnectUser:", connectedUsers);
+  io.emit("usersOnline", { usersOnline, infoUserOnline });
 };
 
 const checkConnect = (io, userId) => {
@@ -119,7 +139,7 @@ const setupSocketIO = (app) => {
       emitCommentUpdate(io, comment, socket.id)
     );
 
-    socket.on("connectUser", (userId) => connectUser(io, userId, socket.id));
+    socket.on("connectUser", (data) => connectUser(io, data, socket.id));
     socket.on("checkConnect", (userId) => checkConnect(io, userId, socket.id));
     socket.on("disconnect", () => disconnectUser(io, socket.id));
 
