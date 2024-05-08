@@ -3,10 +3,11 @@ const socketio = require("socket.io");
 
 // Object to store user information and their socketIds
 const connectedUsers = {};
+const userSockets = {};
 
 const getOtherSocketIds = (currentSocketId) =>
   Object.values(connectedUsers).filter(
-    (socketId) => socketId !== currentSocketId
+    (socketIds) => !socketIds.includes(currentSocketId)
   );
 
 // Socket.io functions
@@ -22,18 +23,39 @@ const emitCommentUpdate = (io, comment, targetSocketId) => {
 };
 
 const connectUser = (io, userId, socketId) => {
-  connectedUsers[userId] = socketId;
+  if (connectedUsers[userId]) {
+    connectedUsers[userId].push(socketId);
+  } else {
+    connectedUsers[userId] = [socketId];
+  }
+
+  userSockets[socketId] = userId;
+};
+
+const checkConnect = (io, userId) => {
+  [userId].forEach((id) => {
+    if (id && connectedUsers[id]) {
+      connectedUsers[id].forEach((socketId) => {
+        io.to(socketId).emit("receiveConnect", { online: true });
+      });
+    }
+  });
 };
 
 const disconnectUser = (io, socketId) => {
-  // Remove user from the list upon disconnection
-  const disconnectedUserId = Object.keys(connectedUsers).find(
-    (userId) => connectedUsers[userId] === socketId
-  );
+  const userId = userSockets[socketId];
 
-  if (disconnectedUserId) {
-    delete connectedUsers[disconnectedUserId];
+  if (userId && connectedUsers[userId]) {
+    connectedUsers[userId] = connectedUsers[userId].filter(
+      (id) => id !== socketId
+    );
+
+    if (connectedUsers[userId].length === 0) {
+      delete connectedUsers[userId];
+    }
   }
+
+  delete userSockets[socketId];
 };
 
 const emitSendMessage = (io, data, targetSocketId) => {
@@ -41,7 +63,9 @@ const emitSendMessage = (io, data, targetSocketId) => {
 
   [userId, receiverId].forEach((id) => {
     if (id && connectedUsers[id]) {
-      io.to(connectedUsers[id]).emit("getMessage", { ...data, targetSocketId });
+      connectedUsers[id].forEach((socketId) => {
+        io.to(socketId).emit("getMessage", { ...data, targetSocketId });
+      });
     }
   });
 };
@@ -51,9 +75,11 @@ const emitUserTyping = (io, data, targetSocketId) => {
 
   [receiverId].forEach((id) => {
     if (id && connectedUsers[id]) {
-      io.to(connectedUsers[id]).emit("receiveUserTyping", {
-        ...data,
-        targetSocketId,
+      connectedUsers[id].forEach((socketId) => {
+        io.to(socketId).emit("receiveUserTyping", {
+          ...data,
+          targetSocketId,
+        });
       });
     }
   });
@@ -64,9 +90,11 @@ const emitReadMessage = (io, data, targetSocketId) => {
 
   [receiverId].forEach((id) => {
     if (id && connectedUsers[id]) {
-      io.to(connectedUsers[id]).emit("receiveReadMessage", {
-        ...data,
-        targetSocketId,
+      connectedUsers[id].forEach((socketId) => {
+        io.to(socketId).emit("receiveReadMessage", {
+          ...data,
+          targetSocketId,
+        });
       });
     }
   });
@@ -82,15 +110,15 @@ const setupSocketIO = (app) => {
 
   // Socket.io event listeners
   io.on("connection", (socket) => {
-    // Process post
     socket.on("updatePost", (post) => emitPostUpdate(io, post, socket.id));
     socket.on("updateComment", (comment) =>
       emitCommentUpdate(io, comment, socket.id)
     );
+
     socket.on("connectUser", (userId) => connectUser(io, userId, socket.id));
+    socket.on("checkConnect", (userId) => checkConnect(io, userId, socket.id));
     socket.on("disconnect", () => disconnectUser(io, socket.id));
 
-    // Process message
     socket.on("sendMessage", (data) => emitSendMessage(io, data, socket.id));
     socket.on("userTyping", (data) => emitUserTyping(io, data, socket.id));
     socket.on("readMessage", (data) => emitReadMessage(io, data, socket.id));
