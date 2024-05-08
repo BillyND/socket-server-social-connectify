@@ -54,10 +54,10 @@ const disconnectUser = (io, socketId) => {
       delete connectedUsers[userId];
       delete infoUserOnline[userId];
     }
-
-    delete userSockets[socketId];
-    clearAndEmitUsersOnline(io);
   }
+
+  delete userSockets[socketId];
+  clearAndEmitUsersOnline(io);
 };
 
 const clearAndEmitUsersOnline = (io, timeout = 500) => {
