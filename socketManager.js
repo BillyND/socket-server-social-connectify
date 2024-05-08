@@ -2,14 +2,10 @@ const http = require("http");
 const socketio = require("socket.io");
 
 // Object to store user information and their socketIds
+let timerConnect, timerDisconnect;
 const infoUserOnline = {};
 const connectedUsers = {};
 const userSockets = {};
-
-const getOtherSocketIds = (currentSocketId) =>
-  Object.values(connectedUsers).filter(
-    (socketIds) => !socketIds.includes(currentSocketId)
-  );
 
 const getUsersOnline = () => {
   const usersOnline = {};
@@ -34,23 +30,16 @@ const emitCommentUpdate = (io, comment, targetSocketId) => {
 };
 
 const connectUser = (io, data, socketId) => {
-  const { userId, email } = data || {};
-
-  if (connectedUsers[userId]) {
-    connectedUsers[userId].push(socketId);
-  } else {
-    connectedUsers[userId] = [socketId];
-  }
-
-  userSockets[socketId] = userId;
+  const { userId } = data || {};
 
   if (userId) {
+    connectedUsers[userId] = connectedUsers[userId] || [];
+    connectedUsers[userId].push(socketId);
     infoUserOnline[userId] = data;
+    userSockets[socketId] = userId;
+
+    clearAndEmitUsersOnline(io);
   }
-
-  const usersOnline = getUsersOnline();
-
-  io.emit("usersOnline", { usersOnline, infoUserOnline });
 };
 
 const disconnectUser = (io, socketId) => {
@@ -63,17 +52,23 @@ const disconnectUser = (io, socketId) => {
 
     if (connectedUsers[userId].length === 0) {
       delete connectedUsers[userId];
+      delete infoUserOnline[userId];
     }
+
+    delete userSockets[socketId];
+    clearAndEmitUsersOnline(io);
   }
+};
 
-  delete userSockets[socketId];
-  delete infoUserOnline[userId];
-  const usersOnline = getUsersOnline();
+const clearAndEmitUsersOnline = (io, timeout = 500) => {
+  clearTimeout(timerConnect);
 
-  io.emit("usersOnline", {
-    usersOnline,
-    infoUserOnline,
-  });
+  timerConnect = setTimeout(() => {
+    const usersOnline = getUsersOnline();
+    console.log("===> Users Online");
+
+    io.emit("usersOnline", { usersOnline, infoUserOnline });
+  }, timeout);
 };
 
 const checkConnect = (io, userId) => {
