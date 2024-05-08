@@ -30,16 +30,8 @@ const connectUser = (io, userId, socketId) => {
   }
 
   userSockets[socketId] = userId;
-};
 
-const checkConnect = (io, userId) => {
-  [userId].forEach((id) => {
-    if (id && connectedUsers[id]) {
-      connectedUsers[id].forEach((socketId) => {
-        io.to(socketId).emit("receiveConnect", { online: true });
-      });
-    }
-  });
+  console.log("===>connectUser:", connectedUsers);
 };
 
 const disconnectUser = (io, socketId) => {
@@ -56,6 +48,18 @@ const disconnectUser = (io, socketId) => {
   }
 
   delete userSockets[socketId];
+
+  console.log("===>disconnectUser:", connectedUsers);
+};
+
+const checkConnect = (io, userId) => {
+  [userId].forEach((id) => {
+    if (id && connectedUsers[id]) {
+      connectedUsers[id].forEach((socketId) => {
+        io.to(socketId).emit("receiveConnect", { online: true });
+      });
+    }
+  });
 };
 
 const emitSendMessage = (io, data, targetSocketId) => {
