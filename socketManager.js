@@ -44,8 +44,8 @@ const connectUser = (io, data, socketId) => {
 
   userSockets[socketId] = userId;
 
-  if (email) {
-    infoUserOnline[email] = data;
+  if (userId) {
+    infoUserOnline[userId] = data;
   }
 
   const usersOnline = getUsersOnline();
@@ -67,9 +67,13 @@ const disconnectUser = (io, socketId) => {
   }
 
   delete userSockets[socketId];
+  delete infoUserOnline[userId];
   const usersOnline = getUsersOnline();
 
-  io.emit("usersOnline", { usersOnline, infoUserOnline });
+  io.emit("usersOnline", {
+    usersOnline,
+    infoUserOnline,
+  });
 };
 
 const checkConnect = (io, userId) => {
