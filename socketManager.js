@@ -140,7 +140,7 @@ const setupSocketIO = (app) => {
 
     socket.on("connectUser", (data) => connectUser(io, data, socket.id));
     socket.on("checkConnect", (userId) => checkConnect(io, userId, socket.id));
-    socket.on("disconnectUser", () => disconnectUser(io, socket.id));
+    socket.on("disconnect", () => disconnectUser(io, socket.id));
 
     socket.on("sendMessage", (data) => emitSendMessage(io, data, socket.id));
     socket.on("userTyping", (data) => emitUserTyping(io, data, socket.id));
