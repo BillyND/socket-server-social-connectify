@@ -32,8 +32,6 @@ const emitCommentUpdate = (io, comment, targetSocketId) => {
 const connectUser = (io, data, socketId) => {
   const { userId } = data || {};
 
-  console.log("===>data", data);
-
   if (userId) {
     connectedUsers[userId] = connectedUsers[userId] || [];
     connectedUsers[userId].push(socketId);
@@ -46,6 +44,8 @@ const connectUser = (io, data, socketId) => {
 
 const disconnectUser = (io, socketId) => {
   const userId = userSockets[socketId];
+
+  console.log("===>disconnect", userId);
 
   if (userId && connectedUsers[userId]) {
     connectedUsers[userId] = connectedUsers[userId].filter(
@@ -67,8 +67,6 @@ const clearAndEmitUsersOnline = (io, timeout = 500) => {
 
   timerConnect = setTimeout(() => {
     const usersOnline = getUsersOnline();
-    console.log("===> Users Online", usersOnline);
-
     io.emit("usersOnline", { usersOnline, infoUserOnline });
   }, timeout);
 };
