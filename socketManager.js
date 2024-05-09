@@ -32,6 +32,8 @@ const emitCommentUpdate = (io, comment, targetSocketId) => {
 const connectUser = (io, data, socketId) => {
   const { userId } = data || {};
 
+  console.log("===>data", data);
+
   if (userId) {
     connectedUsers[userId] = connectedUsers[userId] || [];
     connectedUsers[userId].push(socketId);
@@ -65,7 +67,7 @@ const clearAndEmitUsersOnline = (io, timeout = 500) => {
 
   timerConnect = setTimeout(() => {
     const usersOnline = getUsersOnline();
-    console.log("===> Users Online");
+    console.log("===> Users Online", usersOnline);
 
     io.emit("usersOnline", { usersOnline, infoUserOnline });
   }, timeout);
