@@ -67,8 +67,6 @@ const clearAndEmitUsersOnline = (io, timeout = 500) => {
   timerConnect = setTimeout(() => {
     const usersOnline = getUsersOnline();
 
-    console.log("===>usersOnline", usersOnline);
-
     io.emit("usersOnline", { usersOnline, infoUserOnline });
   }, timeout);
 };
@@ -104,7 +102,7 @@ const emitReadMessage = (io, data, targetSocketId) => {
   const { receiverId } = data || {};
 
   [receiverId].forEach((id) => {
-    if (id && connectedUsers[id] && receiverId !== connectedUsers[id]) {
+    if (id && connectedUsers[id]) {
       connectedUsers[id].forEach((socketId) => {
         io.to(socketId).emit("receiveReadMessage", {
           ...data,
