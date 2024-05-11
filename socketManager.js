@@ -99,12 +99,27 @@ const emitUserTyping = (io, data, targetSocketId) => {
 };
 
 const emitReadMessage = (io, data, targetSocketId) => {
-  const { receiverId } = data || {};
+  const { receiverId, userId } = data || {};
 
   [receiverId].forEach((id) => {
     if (id && connectedUsers[id]) {
       connectedUsers[id].forEach((socketId) => {
         io.to(socketId).emit("receiveReadMessage", {
+          ...data,
+          targetSocketId,
+        });
+      });
+    }
+  });
+};
+
+const emitConversationSameUser = (io, data, targetSocketId) => {
+  const { userId } = data || {};
+
+  [userId].forEach((id) => {
+    if (id && connectedUsers[id]) {
+      connectedUsers[id].forEach((socketId) => {
+        io.to(socketId).emit("getConversationSameUer", {
           ...data,
           targetSocketId,
         });
@@ -148,6 +163,10 @@ const setupSocketIO = (app) => {
     socket.on("sendMessage", (data) => emitSendMessage(io, data, socket.id));
     socket.on("userTyping", (data) => emitUserTyping(io, data, socket.id));
     socket.on("readMessage", (data) => emitReadMessage(io, data, socket.id));
+
+    socket.on("emitConversationSameUser", (data) =>
+      emitConversationSameUser(io, data, socket.id)
+    );
   });
 
   return httpServer;
