@@ -31,8 +31,9 @@ const emitCommentUpdate = (io, comment, targetSocketId) => {
 
 const connectUser = (io, data, socketId) => {
   const { userId } = data || {};
+  const isExistSocketId = connectedUsers[userId]?.includes(socketId);
 
-  if (userId) {
+  if (userId && !isExistSocketId) {
     connectedUsers[userId] = connectedUsers[userId] || [];
     connectedUsers[userId].push(socketId);
     infoUserOnline[userId] = data;
@@ -44,8 +45,6 @@ const connectUser = (io, data, socketId) => {
 
 const disconnectUser = (io, socketId) => {
   const userId = userSockets[socketId];
-
-  console.log("===>disconnect", userId);
 
   if (userId && connectedUsers[userId]) {
     connectedUsers[userId] = connectedUsers[userId].filter(
@@ -67,18 +66,11 @@ const clearAndEmitUsersOnline = (io, timeout = 500) => {
 
   timerConnect = setTimeout(() => {
     const usersOnline = getUsersOnline();
+
+    console.log("===>usersOnline", usersOnline);
+
     io.emit("usersOnline", { usersOnline, infoUserOnline });
   }, timeout);
-};
-
-const checkConnect = (io, userId) => {
-  [userId].forEach((id) => {
-    if (id && connectedUsers[id]) {
-      connectedUsers[id].forEach((socketId) => {
-        io.to(socketId).emit("receiveConnect", { online: true });
-      });
-    }
-  });
 };
 
 const emitSendMessage = (io, data, targetSocketId) => {
@@ -112,7 +104,7 @@ const emitReadMessage = (io, data, targetSocketId) => {
   const { receiverId } = data || {};
 
   [receiverId].forEach((id) => {
-    if (id && connectedUsers[id]) {
+    if (id && connectedUsers[id] && receiverId !== connectedUsers[id]) {
       connectedUsers[id].forEach((socketId) => {
         io.to(socketId).emit("receiveReadMessage", {
           ...data,
@@ -129,19 +121,32 @@ const setupSocketIO = (app) => {
     cors: {
       origin: "*",
     },
+    transports: ["websocket"],
+    reconnection: true, // Enable reconnection
+    reconnectionDelay: 1000, // Initial delay before attempting to reconnect
+    reconnectionAttempts: Infinity, // Number of reconnection attempts (-1 for infinite)
   });
 
   // Socket.io event listeners
   io.on("connection", (socket) => {
+    // Start a heartbeat interval for this socket
+    const heartbeatInterval = setInterval(() => {
+      socket.emit("heartbeat");
+    }, 1000); // Send heartbeat every 5 seconds
+
+    // Listen for disconnect event
+    socket.on("disconnect", () => {
+      // Clear the heartbeat interval when the socket disconnects
+      clearInterval(heartbeatInterval);
+      disconnectUser(io, socket.id);
+    });
+
     socket.on("updatePost", (post) => emitPostUpdate(io, post, socket.id));
     socket.on("updateComment", (comment) =>
       emitCommentUpdate(io, comment, socket.id)
     );
 
     socket.on("connectUser", (data) => connectUser(io, data, socket.id));
-    socket.on("checkConnect", (userId) => checkConnect(io, userId, socket.id));
-    socket.on("disconnect", () => disconnectUser(io, socket.id));
-
     socket.on("sendMessage", (data) => emitSendMessage(io, data, socket.id));
     socket.on("userTyping", (data) => emitUserTyping(io, data, socket.id));
     socket.on("readMessage", (data) => emitReadMessage(io, data, socket.id));
